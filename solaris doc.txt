@@ -1,0 +1,366 @@
+share the volume
+
+share -F nfs -o ro,anon=0 -d "install server director" /export/home/solaris
+
+
+
+To view the service working or not
+svcs -l svc:/network/nfs/server:default
+
+restart the service ( disable and enable)
+svcadm disable svc:/network/nfs/server
+svcadm enable svc:/network/nfs/server
+shareall
+
+configure dhcp and pxe support
+you must know the client mac address for a specific install
+note: get mac address fomr the client bios
+dns
+
+ssh dhcp box
+vi /etc/dhcpd.conf
+
+add the line
+
+host linuxcbtsun1 {
+    hardware ethernet 00:13:3f:10.c6:93;
+    fixed-address 192.168.19.50;
+    option host-name "linuxcbtsun1";
+    filename 001145ABCE5;
+    
+}
+
+cd /cdrom/solaris/tools
+
+./add_install_client -d -e "00:11:43:58:bc:e5" -s 192.169.19.40:/export/home/solaris i86pc
+
+console install
+./add_install_clinet -d -e "00:11:43:" -s 192.167.x.x:/export/home/solaris -b "console==ttya" i86pc
+
+
+-----
+
+sysid config (sysidcfg)
+--------------
+network_interface=primary {dhcp protocol_ipvp=no}
+timezone=us/eastern
+name_service=NDS {name_server=x.x.x.x,x,x domain_name=linuxcbt.internal search=linuxcbt.internal}
+root_password=get from the /etc/shadow
+security_policy=NONE
+system_Locale=C
+
+save the file in /export/home/solaris
+./add_install_client -d -e "mac add" -s solaris:/export/home/solaris i86pc
+
+
+custom_jumpstart
+=================
+
+mkdir /jumpstart
+cd /cdrom/solaris/
+cd misc
+cd jumpstart_sample
+cp * /jumpstart &&  cd /jumpstart/ && ls -ltr
+
+gedit rules
+
+flash install
+============
+
+login to single user mode in 
+--------------------------------
+
+who -r
+init 1
+who -r
+ifconfig -a
+netstat -n
+
+flar ( flash archive)
+
+flar
+
+Flash archive - Deos not support non-global zones
+flar create -n PE-2600-solaris100106 -c /var/PE-2600-solaris100106.flar
+
+toview the files :
+
+flar info -l PE-2600-solaris100106.flar
+
+init 3
+cd /var/
+ls -ltr
+scp PE-2600-solaris100106.flar 192.168.1.197:/export/home/solaris100106
+
+
+Grand Unified Bootloader
+========================
+1. BIOS (Ensure hardware health) - CPU, Memory, Hard disk
+2. GRUB
+3. OS Kernel
+4. pid =0 in sched, init pid =1
+5. init
+6. SMF (loding the serives)
+7. operational System ( single /multi user mode)
+8. 
+
+GRUB
+BIOS-GRUB (Stage1 (512) * stage2 loaders) -> os kernel (multiboot, boot_archive, unix) -sched (pid 0) -> init pid1 -> smf - > 
+ 
+cat menu.list
+
+
+INIT in details
+====================
+
+/usr/sbin/init is repereseted in the process table as pid 1
+init config file is: /etc/inittab
+
+cd /etc/
+ls inittab
+
+init's config file is : /etc/inittab
+init supports entering and exiting various runlevels
+supportted runlevels: 0 -s
+
+0 - shutdown runlevel
+1 -single user mode - no netwroking support is provided
+2 - mutli-user mode  support without nfs
+3 - mutliuser  support with NFS
+4 - unused
+5 - interactive boot 
+6 - reboot
+s - single user mode - no netwroking support is provied
+
+### Service management Facility (SMF)  ###
+Feature include:
+Provide service management via service configration databse ( list of service s and their various support methods)
+provide legacy rc script  (old programs will work)
+faclilitate servie dependencies (a & b)
+permit automatic restarts of failed and/or stopped servies
+provides service status information (online/offline, dependencies)
+causes each defined service to log individually to: /var/svc/log
+defines a fault management resource identifier (FMRI)
+can load mutually exclusive services in parallel
+
+
+
+
+service states
+--------------------
+1. online/offline
+2. legacy_run / maintenance
+3. Uninitialized /degraded/disabled
+
+3. Primary SMF utilites
+
+svcs - lists services and provide additional info
+svcadm - permits interation with services, including state transitions
+svccfg - permits interaction with services configuration databaes
+svc.startd - is the default service restarter/manager
+inetadm - is the default service restarter for INETD daemons
+
+FRMIs Provide categories for services:
+
+1. network
+2. milestones
+
+
+
+
+syntax for svcs
+
+svcs -d svc:/network/smtp:sendmail
+svcs -D svc:/network/smtp:sendmail
+
+svcs -l FRMI - return verbose dependencies
+svcs -l smtp - FMRLs can usually be referenced by their unique parts
+
+svcs -l sendmail
+svcs -l smtp
+SMF 's default log location for services is /var/svc/log/frmi_log.default
+
+which svcadm
+svcadm
+
+
+svcadm enable [-rst] <service> .. enable and online serivce
+svcadm disable [-st] <service>
+svcadm restart <>
+svcadm mark [-It] <state> <service>
+svcadm clear <service>
+svcadm milestone [-d] <milestone>
+
+---------------------
+
+
+svcadm disable FMRI
+svcadm disable -s FMRI - stops each services instance
+svcadm disable -s sendmail - stops default instance
+svcadm disable svc:/network/smtp:sendmail
+svcadm disable -t FRMI - effect temporary disabled
+
+Note: svcadm really delegates service management to default restarter. i.e svc.startd
+
+svcadm enable FRMI - enable FRMI acrose all reboots
+svcadm enable -t FRMI - enable FRMI for current session
+svcadm enable -r FRMI - all dependices are enabled
+svcadm enable -s FRMI - enable each services instance
+
+
+grep svc /etc/inittab
+
+which inetadm
+cd /etc/
+ls -ltr inetd.conf
+
+Serivce management with inetadm
+
+inetadm controls inetd services
+note: inetd is a super-server which proxies connections to servers 
+client- inetd - telnet
+
+note: inetd services are traditionally defined in /etc/inetd.conf
+note: inetadm permits control of key/value or name/value pairs of services
+
+inetadm -d FMRI - disable service
+inetadm -e FRMI - enable the service
+
+client1 - inetd - tftpd
+clinet2 - inetd - tftpd
+
+inetd (effect change globally i.e bind_address, etc ) - inetd -Memory
+-telent
+-ftfpd (effect change service scope based . i.e bind_address )- inetadm -m
+
+
+user management
+------------------
+root:x:0:0:Super-User:/:/sbin/sh
+username:passwprd/shadow:uid:gid:description:home_directory:default_shell
+
+note: root's uid/gid values are always 0.
+note: valuve 0-99 for uid/gid are reserved for system ID's
+
+Max uid/gid = 2billion, however, try not to exceed 60,000
+
+
+/etc/shadow
+root:whAZQATbkExKo:6445::::::
+username:encrypted_passwd:num_of_days_since_epoch_password_changed:min_hold_period:max_hold_period:num_of_days_prior_to_expiration_to_issue_warinig:inactity_limit:expiration_date_using unix_epoch:
+
+/etc/default/passwd
+change the leanth of password
+
+
+Group management
+
+groupadd/groupmod/newgrp/groups
+
+/etc/default/group
+
+/etc/group - houses group on the solaris box
+adm::4:root,daemons
+group_name:optional_passwd:GID:list of members (comma-delimited)
+
+
+rules regarding groups:
+A user can belong to 1 primary group and up to 15 secondary groups
+primary groups : Permit the operating system to assing a default group to objects (files/directories)
+Secondary group: permits subject(users) the flexibility to access various group-protected resources
+
+
+usermod -G group1,group2, group3....
+usermod -G training unixcbt
+
+
+useradd -G training -s /usr/bin/bash unixcbt2 
+
+
+
+ 
+export PATH=$PATH:/usr/sfw/bin
+
+
+determine configured memory (include physical / virtual processors)
+
+prtconf
+
+psrinfo
+psrinfo -v  -> list virtual procress info
+psrinfo -pv -> list physical processors and associated virtual processors
+isainfo 
+isainfo -bv
+date
+date 'date+time: %m.%d.%y @ %H:%M.%S'
+
+
+pgrep
+prstat
+
+vi /etc/dfs/dfstab
+
+share nfs -o ro, 
+
+mount remote server nfs
+mkdir /export/home/solariscompanion
+mount -F nfs linuxcbtsun2:/export/home/solariscompanion /export/home/solariscompanion
+
+cd /export/home/solariscompanion
+./installer
+
+which bluefish
+/opt/sfw/bin/bluefish
+which snort
+/opt/sfw/bin/snort
+
+without GUI
+
+./installer -nodisplay
+
+installtion directory = /opt/sfw/
+
+to view the packages
+
+pkginfo
+pkginfo -l 
+pkginfo -l SFWblue - reture full information
+prodreg - gui for install and unisntall
+pkginfo -x - return an extracted list of packages.
+
+
+--------
+package check
+
+pkgchk -v SFWblue
+
+pkgchk -v SFWblue  SFWjoe
+
+
+pkgchk -lp /opt/sfw/bin/bluefish - returen the package that 'bluefish' belongs to
+
+pkgchk -ap /opt/sfw/bin/bluefish - audits the permissions on the file 'bluefish'
+
+pkgchk -fp /opt/sfw/bin/bluefish - 
+
+
+
+
+
+
+
+
+ 
+
+backup and restore lvm
+
+vgcfgbackup
+vgcfgrestore
+/etc/lvmconf/base_vg_name.conf
+
+ -
+
+
+
+
+

@@ -1,0 +1,13 @@
+php 5.3.3
+mysql 5.1.73
+apache 2.2.15
+phpmyadmin - 4.0.10.18
+
+
+mysql Database backup
+
+mysqldump -u root -p Merrill databasename > test.sql
+
+
+
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/httpd/ssl/apache.key -out /etc/httpd/ssl/apache.crt
