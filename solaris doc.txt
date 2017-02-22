@@ -359,6 +359,8 @@ vgcfgrestore
 /etc/lvmconf/base_vg_name.conf
 
  -
+ 
+ ok. i will work on it
 
 
 
